@@ -1,0 +1,220 @@
+name: Build Desktop & Mobile
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to build'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - macos
+          - windows
+          - ios
+          - android
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+
+jobs:
+  # =========================================================================
+  # macOS Build
+  # =========================================================================
+  build-macos:
+    runs-on: macos-latest
+    if: github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all' || github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build macOS
+        run: flutter build macos --release
+
+      - name: Package macOS
+        run: |
+          APP_NAME="Dictation Assistant"
+          BUILD_DIR="build/macos/Build/Products/Release"
+          OUTPUT_DIR="build_outputs/macos"
+          mkdir -p "$OUTPUT_DIR"
+          cp -R "$BUILD_DIR/$APP_NAME.app" "$OUTPUT_DIR/"
+          cd "$OUTPUT_DIR"
+          zip -r "dictation-assistant-macos.zip" "$APP_NAME.app"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dictation-assistant-macos
+          path: build_outputs/macos/dictation-assistant-macos.zip
+
+  # =========================================================================
+  # Windows Build
+  # =========================================================================
+  build-windows:
+    runs-on: windows-latest
+    if: github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' || github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Build Windows
+        run: flutter build windows --release
+
+      - name: Package Windows
+        run: |
+          $OutputDir = "build_outputs/windows"
+          New-Item -ItemType Directory -Force -Path $OutputDir
+          $SourceDir = "build/windows/x64/runner/Release"
+          Copy-Item -Path "$SourceDir\*" -Destination $OutputDir -Recurse -Force
+          Compress-Archive -Path "$OutputDir\*" -DestinationPath "build_outputs/dictation-assistant-windows.zip" -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dictation-assistant-windows
+          path: build_outputs/dictation-assistant-windows.zip
+
+  # =========================================================================
+  # iOS Build
+  # =========================================================================
+  build-ios:
+    runs-on: macos-latest
+    if: github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'all' || github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Package iOS
+        run: |
+          mkdir -p build_outputs/ios
+          cp -R build/ios/iphoneos/Runner.app build_outputs/ios/
+          cd build_outputs/ios
+          zip -r dictation-assistant-ios.zip Runner.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dictation-assistant-ios
+          path: build_outputs/ios/dictation-assistant-ios.zip
+
+  # =========================================================================
+  # Android Build
+  # =========================================================================
+  build-android:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.platform == 'android' || github.event.inputs.platform == 'all' || github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Build AAB
+        run: flutter build appbundle --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dictation-assistant-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: dictation-assistant-android-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+
+  # =========================================================================
+  # Create Release (on version tag)
+  # =========================================================================
+  release:
+    needs: [build-macos, build-windows, build-android]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/dictation-assistant-macos/*.zip
+            artifacts/dictation-assistant-windows/*.zip
+            artifacts/dictation-assistant-android-apk/*.apk
+            artifacts/dictation-assistant-android-aab/*.aab
+          generate_release_notes: true
