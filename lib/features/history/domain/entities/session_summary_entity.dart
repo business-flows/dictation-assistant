@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../../services/app_database.dart';
+import '../../../dictation/domain/entities/session_entity.dart' show SessionStatus;
 
 /// Lightweight entity for displaying session summaries in history list views.
 ///

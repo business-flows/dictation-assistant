@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../../core/constants/app_constants.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../domain/entities/session_summary_entity.dart';
 
 /// Card widget displaying a session summary in the history list.

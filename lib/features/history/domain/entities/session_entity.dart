@@ -1,8 +1,10 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../../services/app_database.dart';
+import '../../../dictation/domain/entities/session_entity.dart';
 
-/// Full session entity for detail views.
+export '../../../dictation/domain/entities/session_entity.dart' show SessionEntity, SessionStatus;
+
+/// Re-export of [SessionEntity] from the dictation domain for history feature use.
 ///
 /// Contains the complete session data including full transcription text,
 /// refined text, and all metadata.

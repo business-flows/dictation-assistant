@@ -45,6 +45,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     this._getAvailableModels,
     this._getDownloadedModels,
     this._downloadModel,
+    this._deleteModel,
     this._logger,
   ) : super(const SettingsInitial()) {
     on<LoadSettings>(_onLoadSettings);

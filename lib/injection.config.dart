@@ -218,7 +218,8 @@ extension GetItInjectableX on _i1.GetIt {
     gh.singleton<_illm.ILLMRepository>(
       () => _llri.LlmRepositoryImpl(
         remoteDataSource: gh<_llds.LlmRemoteDataSource>(),
-        settingsRepository: gh<_iset.ISettingsRepository>(),
+        database: gh<_i10.AppDatabase>(),
+        dio: gh<_i4.Dio>(),
         logger: gh<_i5.Logger>(),
       ),
     );
@@ -232,7 +233,7 @@ extension GetItInjectableX on _i1.GetIt {
 
     gh.singleton<_icr.IClipboardRepository>(
       () => _cri.ClipboardRepositoryImpl(
-        dataSource: gh<_cd.ClipboardDataSource>(),
+        logger: gh<_i5.Logger>(),
       ),
     );
 
@@ -407,6 +408,7 @@ extension GetItInjectableX on _i1.GetIt {
         gh<_gam.GetAvailableModels>(),
         gh<_gdm.GetDownloadedModels>(),
         gh<_dlm.DownloadModel>(),
+        gh<_dm.DeleteModel>(),
         gh<_i5.Logger>(),
       ),
     );
@@ -424,6 +426,7 @@ extension GetItInjectableX on _i1.GetIt {
       () => _eb.ExportBloc(
         exportToDocx: gh<_etd.ExportToDocx>(),
         copyToClipboard: gh<_ctc.CopyToClipboard>(),
+        shareText: gh<_st.ShareText>(),
         filePicker: gh<_fpd.FilePickerDataSource>(),
       ),
     );
@@ -432,4 +435,4 @@ extension GetItInjectableX on _i1.GetIt {
   }
 }
 
-class _$RegisterModule extends _i2.RegisterModule {}
+class _$RegisterModul
