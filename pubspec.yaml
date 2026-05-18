@@ -29,7 +29,7 @@ dependencies:
   record_platform_interface: ^1.2.0
 
   # Whisper.cpp FFI bindings
-  whisper_ggml_plus: ^0.0.4
+  whisper_ggml_plus: ^1.5.2
 
   # HTTP Client + Streaming
   dio: ^5.7.0
