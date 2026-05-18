@@ -5,7 +5,7 @@
 .PHONY: help setup clean test build install model models analyze format generate
 
 FLUTTER := flutter
-BUILD_RUNNER := $(FLUTTER) pub run build_runner
+BUILD_RUNNER := dart run build_runner
 SCRIPTS := ./build_scripts
 
 # Default target

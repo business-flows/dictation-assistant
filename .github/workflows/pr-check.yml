@@ -6,8 +6,12 @@ on:
 
 env:
   FLUTTER_VERSION: '3.24.0'
+  JAVA_VERSION: '17'
 
 jobs:
+  # =========================================================================
+  # Analysis + Tests
+  # =========================================================================
   analyze-and-test:
     runs-on: ubuntu-latest
     steps:
@@ -17,7 +21,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
       - name: Setup Flutter
@@ -25,6 +29,7 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
+          cache: true
 
       - name: Get dependencies
         run: flutter pub get
@@ -32,16 +37,19 @@ jobs:
       - name: Verify formatting
         run: dart format --set-exit-if-changed .
 
-      - name: Analyze
-        run: flutter analyze
-
       - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos
 
       - name: Run tests
         run: flutter test
 
-  build-android-check:
+  # =========================================================================
+  # Build smoke test — Android (cheapest platform to build)
+  # =========================================================================
+  build-android-smoke:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -50,7 +58,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
       - name: Setup Flutter
@@ -58,12 +66,13 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
+          cache: true
 
       - name: Get dependencies
         run: flutter pub get
 
       - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: Build Android
+      - name: Build Android (debug)
         run: flutter build apk --debug

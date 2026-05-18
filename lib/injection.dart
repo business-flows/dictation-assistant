@@ -1,36 +1,24 @@
 import 'package:get_it/get_it.dart';
 
-import 'features/dictation/domain/usecases/get_current_session.dart';
-import 'features/dictation/domain/usecases/start_dictation.dart';
-import 'features/dictation/domain/usecases/stop_dictation.dart';
-import 'features/dictation/domain/usecases/update_session_text.dart';
-import 'features/dictation/presentation/bloc/dictation_bloc.dart';
-import 'features/history/presentation/bloc/history_bloc.dart';
-import 'features/settings/presentation/bloc/settings_bloc.dart';
+import 'injection.config.dart';
 
+/// Global GetIt instance for dependency injection.
 final GetIt getIt = GetIt.instance;
 
-/// Configures dependency injection for the application.
+/// Configures all dependencies for the application.
 ///
-/// This is a manual setup that will be replaced with injectable code generation
-/// once all use case implementations are in place.
+/// This function is called once at app startup. It registers all services,
+/// repositories, use cases, and BLoCs through the generated [GetItInjectableX]
+/// extension method.
+///
+/// To regenerate after adding new @injectable/@singleton/@lazySingleton:
+///   dart run build_runner build --delete-conflicting-outputs
+///
+/// Dependencies are organized as follows:
+/// - **Singletons**: AppDatabase, AudioService, WhisperService, ChunkProcessor
+/// - **LazySingletons**: All repository implementations
+/// - **Factories**: Use cases (created fresh per call)
+/// - **Singletons**: BLoCs that need to persist across the app lifetime
 Future<void> configureDependencies() async {
-  // Use cases (throw UnimplementedError until implemented by another developer)
-  getIt.registerLazySingleton<StartDictation>(() => StartDictation());
-  getIt.registerLazySingleton<StopDictation>(() => StopDictation());
-  getIt.registerLazySingleton<GetCurrentSession>(() => GetCurrentSession());
-  getIt.registerLazySingleton<UpdateSessionText>(() => UpdateSessionText());
-
-  // BLoCs
-  getIt.registerFactory<DictationBloc>(
-    () => DictationBloc(
-      startDictation: getIt<StartDictation>(),
-      stopDictation: getIt<StopDictation>(),
-      getCurrentSession: getIt<GetCurrentSession>(),
-      updateSessionText: getIt<UpdateSessionText>(),
-    ),
-  );
-
-  getIt.registerFactory<HistoryBloc>(() => HistoryBloc());
-  getIt.registerFactory<SettingsBloc>(() => SettingsBloc());
+  await getIt.init();
 }

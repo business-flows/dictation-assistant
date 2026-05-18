@@ -74,9 +74,9 @@ check_deps() {
     flutter pub get
 
     log_info "Running build_runner..."
-    if ! flutter pub run build_runner build --delete-conflicting-outputs; then
+    if ! dart run build_runner build --delete-conflicting-outputs; then
         log_warn "Build runner had issues, trying again..."
-        flutter pub run build_runner build --delete-conflicting-outputs
+        dart run build_runner build --delete-conflicting-outputs
     fi
 
     log_success "Dependencies ready"

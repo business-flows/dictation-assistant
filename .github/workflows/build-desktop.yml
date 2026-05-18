@@ -1,4 +1,4 @@
-name: Build Desktop & Mobile
+name: Build & Release
 
 on:
   push:
@@ -17,19 +17,60 @@ on:
           - all
           - macos
           - windows
-          - ios
           - android
 
 env:
   FLUTTER_VERSION: '3.24.0'
+  JAVA_VERSION: '17'
 
 jobs:
   # =========================================================================
-  # macOS Build
+  # pre-check — fail fast on analysis, formatting, and tests
+  # =========================================================================
+  pre-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+      - name: Run tests
+        run: flutter test
+
+  # =========================================================================
+  # Build — macOS
   # =========================================================================
   build-macos:
+    needs: [pre-check]
     runs-on: macos-latest
-    if: github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all' || github.event_name != 'workflow_dispatch'
+    if: >
+      github.event.inputs.platform == 'macos' ||
+      github.event.inputs.platform == 'all' ||
+      github.event_name != 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,18 +80,16 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
+          cache: true
 
-      - name: Install dependencies
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Get dependencies
         run: flutter pub get
 
       - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-
-      - name: Analyze
-        run: flutter analyze
-
-      - name: Run tests
-        run: flutter test
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build macOS
         run: flutter build macos --release
@@ -59,24 +98,32 @@ jobs:
         run: |
           APP_NAME="Dictation Assistant"
           BUILD_DIR="build/macos/Build/Products/Release"
-          OUTPUT_DIR="build_outputs/macos"
+          OUTPUT_DIR="build_outputs"
           mkdir -p "$OUTPUT_DIR"
           cp -R "$BUILD_DIR/$APP_NAME.app" "$OUTPUT_DIR/"
           cd "$OUTPUT_DIR"
-          zip -r "dictation-assistant-macos.zip" "$APP_NAME.app"
+          zip -q -r "dictation-assistant-macos.zip" "$APP_NAME.app"
+          echo "=== macOS package ==="
+          ls -lh dictation-assistant-macos.zip
+          du -sh "$APP_NAME.app"
 
-      - name: Upload artifact
+      - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dictation-assistant-macos
-          path: build_outputs/macos/dictation-assistant-macos.zip
+          name: macos-artifact
+          path: build_outputs/dictation-assistant-macos.zip
+          if-no-files-found: error
 
   # =========================================================================
-  # Windows Build
+  # Build — Windows
   # =========================================================================
   build-windows:
+    needs: [pre-check]
     runs-on: windows-latest
-    if: github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' || github.event_name != 'workflow_dispatch'
+    if: >
+      github.event.inputs.platform == 'windows' ||
+      github.event.inputs.platform == 'all' ||
+      github.event_name != 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -86,74 +133,47 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
+          cache: true
 
-      - name: Install dependencies
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Get dependencies
         run: flutter pub get
 
       - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build Windows
         run: flutter build windows --release
 
       - name: Package Windows
         run: |
-          $OutputDir = "build_outputs/windows"
+          $OutputDir = "build_outputs"
           New-Item -ItemType Directory -Force -Path $OutputDir
           $SourceDir = "build/windows/x64/runner/Release"
           Copy-Item -Path "$SourceDir\*" -Destination $OutputDir -Recurse -Force
           Compress-Archive -Path "$OutputDir\*" -DestinationPath "build_outputs/dictation-assistant-windows.zip" -Force
+          Write-Host "=== Windows package ==="
+          Get-ChildItem build_outputs/dictation-assistant-windows.zip | Select-Object Name, Length
 
-      - name: Upload artifact
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dictation-assistant-windows
+          name: windows-artifact
           path: build_outputs/dictation-assistant-windows.zip
+          if-no-files-found: error
 
   # =========================================================================
-  # iOS Build
-  # =========================================================================
-  build-ios:
-    runs-on: macos-latest
-    if: github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'all' || github.event_name != 'workflow_dispatch'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-
-      - name: Build iOS (no codesign)
-        run: flutter build ios --release --no-codesign
-
-      - name: Package iOS
-        run: |
-          mkdir -p build_outputs/ios
-          cp -R build/ios/iphoneos/Runner.app build_outputs/ios/
-          cd build_outputs/ios
-          zip -r dictation-assistant-ios.zip Runner.app
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dictation-assistant-ios
-          path: build_outputs/ios/dictation-assistant-ios.zip
-
-  # =========================================================================
-  # Android Build
+  # Build — Android
   # =========================================================================
   build-android:
+    needs: [pre-check]
     runs-on: ubuntu-latest
-    if: github.event.inputs.platform == 'android' || github.event.inputs.platform == 'all' || github.event_name != 'workflow_dispatch'
+    if: >
+      github.event.inputs.platform == 'android' ||
+      github.event.inputs.platform == 'all' ||
+      github.event_name != 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -161,7 +181,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
       - name: Setup Flutter
@@ -169,12 +189,13 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
+          cache: true
 
-      - name: Install dependencies
+      - name: Get dependencies
         run: flutter pub get
 
       - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build APK
         run: flutter build apk --release
@@ -182,20 +203,30 @@ jobs:
       - name: Build AAB
         run: flutter build appbundle --release
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: dictation-assistant-android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+      - name: Rename & verify
+        run: |
+          mkdir -p build_outputs
+          cp build/app/outputs/flutter-apk/app-release.apk build_outputs/dictation-assistant-android.apk
+          cp build/app/outputs/bundle/release/app-release.aab build_outputs/dictation-assistant-android.aab
+          echo "=== Android packages ==="
+          ls -lh build_outputs/
 
-      - name: Upload AAB
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: dictation-assistant-android-aab
-          path: build/app/outputs/bundle/release/app-release.aab
+          name: android-apk-artifact
+          path: build_outputs/dictation-assistant-android.apk
+          if-no-files-found: error
+
+      - name: Upload Android AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aab-artifact
+          path: build_outputs/dictation-assistant-android.aab
+          if-no-files-found: error
 
   # =========================================================================
-  # Create Release (on version tag)
+  # Release — create GitHub release on version tag
   # =========================================================================
   release:
     needs: [build-macos, build-windows, build-android]
@@ -204,17 +235,43 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download all artifacts
+      - name: Download macOS artifact
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          name: macos-artifact
+          path: release/
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-artifact
+          path: release/
+
+      - name: Download Android APK
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk-artifact
+          path: release/
+
+      - name: Download Android AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: android-aab-artifact
+          path: release/
+
+      - name: List release files
+        run: |
+          echo "=== Release artifacts ==="
+          ls -lh release/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/dictation-assistant-macos/*.zip
-            artifacts/dictation-assistant-windows/*.zip
-            artifacts/dictation-assistant-android-apk/*.apk
-            artifacts/dictation-assistant-android-aab/*.aab
+            release/*.zip
+            release/*.apk
+            release/*.aab
           generate_release_notes: true
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
