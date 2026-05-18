@@ -76,7 +76,6 @@ dependencies:
 
   # Window management (desktop)
   window_manager: ^0.4.2
-  system_tray: ^2.0.3
 
   # Secure storage
   flutter_secure_storage: ^9.2.2

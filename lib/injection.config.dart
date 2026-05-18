@@ -66,7 +66,7 @@ import 'features/settings/presentation/bloc/settings_bloc.dart' as _sb;
 import 'services/app_database.dart' as _i10;
 import 'services/audio_service.dart' as _i20;
 import 'services/chunk_processor.dart' as _cp;
-import 'services/notification_service.dart' as _ns;
+
 import 'services/whisper_service.dart' as _ws;
 
 /// Injectable module providing third-party dependencies.
