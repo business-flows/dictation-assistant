@@ -4,13 +4,13 @@ import 'package:dartz/dartz.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../dictation/domain/entities/session_entity.dart';
 import '../../domain/entities/export_options_entity.dart';
 import '../../domain/repositories/i_export_repository.dart';
 import '../datasources/local/docx_generator.dart';
 
-/// Implementation of [IExportRepository] using the docx_dart package.
+/// Implementation of [IExportRepository] using the docx_creator package.
 ///
 /// Generates formatted Microsoft Word (.docx) documents from
 /// dictation session data. Handles both simple text export and
@@ -41,7 +41,6 @@ class ExportRepositoryImpl implements IExportRepository {
         await dir.create(recursive: true);
       }
 
-      final fileName = options.customFilename ?? sessionId;
       final title = 'Dictation - ${_formatDate(DateTime.now().toUtc())}';
 
       await _docxGenerator.generate(
@@ -74,15 +73,18 @@ class ExportRepositoryImpl implements IExportRepository {
       }
 
       final title = 'Dictation - ${_formatDate(session.createdAt)}';
-      final effectiveText = session.getEffectiveText(preferRefined: true);
+
+      // Use refined text if available, otherwise use transcribed text
+      final effectiveText = session.refinedText ?? session.transcribedText;
+      final hasRefined = session.refinedText != null && session.refinedText!.isNotEmpty;
 
       await _docxGenerator.generate(
         outputPath: savePath,
         title: title,
         subtitle: 'Session: ${session.id}',
         bodyText: effectiveText,
-        refinedText: session.hasRefinedText ? session.refinedText : null,
-        isRtl: session.isRtl,
+        refinedText: hasRefined ? session.refinedText : null,
+        isRtl: session.languageCode == 'ar',
       );
 
       _logger.i('Session DOCX export completed: $savePath');

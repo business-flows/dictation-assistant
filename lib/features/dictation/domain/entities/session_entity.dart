@@ -1,7 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../services/app_database.dart';
-
 /// Status of a dictation session.
 ///
 /// Represents the lifecycle stages of a recording session:
